@@ -11,10 +11,12 @@ import com.mohiva.play.silhouette.impl.providers._
 import forms.SignUpForm
 import models.User
 import models.services.{ AuthTokenService, UserService }
+import play.api.{ Configuration, Logger, Mode }
 import play.api.i18n.{ I18nSupport, Messages, MessagesApi }
 import play.api.libs.concurrent.Execution.Implicits._
 import play.api.libs.mailer.{ Email, MailerClient }
 import play.api.mvc.Controller
+import utils.MailUtils
 import utils.auth.DefaultEnv
 
 import scala.concurrent.Future
@@ -41,8 +43,9 @@ class SignUpController @Inject() (
   avatarService: AvatarService,
   passwordHasherRegistry: PasswordHasherRegistry,
   mailerClient: MailerClient,
+  environment: play.api.Environment,
   implicit val webJarAssets: WebJarAssets)
-  extends Controller with I18nSupport {
+  extends Controller with I18nSupport with MailUtils {
 
   /**
    * Views the `Sign Up` page.
@@ -67,13 +70,14 @@ class SignUpController @Inject() (
         userService.retrieve(loginInfo).flatMap {
           case Some(user) =>
             val url = routes.SignInController.view().absoluteURL()
-            mailerClient.send(Email(
+            val email = Email(
               subject = Messages("email.already.signed.up.subject"),
               from = Messages("email.from"),
               to = Seq(data.email),
               bodyText = Some(views.txt.emails.alreadySignedUp(user, url).body),
               bodyHtml = Some(views.html.emails.alreadySignedUp(user, url).body)
-            ))
+            )
+            sendMail(email, environment.mode, mailerClient)
 
             Future.successful(result)
           case None =>
@@ -95,13 +99,14 @@ class SignUpController @Inject() (
               authToken <- authTokenService.create(user.userID)
             } yield {
               val url = routes.ActivateAccountController.activate(authToken.id).absoluteURL()
-              mailerClient.send(Email(
+              val email = Email(
                 subject = Messages("email.sign.up.subject"),
                 from = Messages("email.from"),
                 to = Seq(data.email),
                 bodyText = Some(views.txt.emails.signUp(user, url).body),
                 bodyHtml = Some(views.html.emails.signUp(user, url).body)
-              ))
+              )
+              sendMail(email, environment.mode, mailerClient)
 
               silhouette.env.eventBus.publish(SignUpEvent(user, request))
               result
@@ -110,4 +115,5 @@ class SignUpController @Inject() (
       }
     )
   }
+
 }

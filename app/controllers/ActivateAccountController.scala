@@ -11,6 +11,7 @@ import play.api.i18n.{ I18nSupport, Messages, MessagesApi }
 import play.api.libs.concurrent.Execution.Implicits._
 import play.api.libs.mailer.{ Email, MailerClient }
 import play.api.mvc.Controller
+import utils.MailUtils
 import utils.auth.DefaultEnv
 
 import scala.concurrent.Future
@@ -32,8 +33,9 @@ class ActivateAccountController @Inject() (
   userService: UserService,
   authTokenService: AuthTokenService,
   mailerClient: MailerClient,
+  environment: play.api.Environment,
   implicit val webJarAssets: WebJarAssets)
-  extends Controller with I18nSupport {
+  extends Controller with I18nSupport with MailUtils {
 
   /**
    * Sends an account activation email to the user with the given email.
@@ -50,14 +52,14 @@ class ActivateAccountController @Inject() (
       case Some(user) if !user.activated =>
         authTokenService.create(user.userID).map { authToken =>
           val url = routes.ActivateAccountController.activate(authToken.id).absoluteURL()
-
-          mailerClient.send(Email(
+          val email = Email(
             subject = Messages("email.activate.account.subject"),
             from = Messages("email.from"),
             to = Seq(decodedEmail),
             bodyText = Some(views.txt.emails.activateAccount(user, url).body),
             bodyHtml = Some(views.html.emails.activateAccount(user, url).body)
-          ))
+          )
+          sendMail(email, environment.mode, mailerClient)
           result
         }
       case None => Future.successful(result)

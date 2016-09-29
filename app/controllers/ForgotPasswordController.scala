@@ -10,6 +10,7 @@ import play.api.i18n.{ I18nSupport, Messages, MessagesApi }
 import play.api.libs.concurrent.Execution.Implicits._
 import play.api.libs.mailer.{ Email, MailerClient }
 import play.api.mvc.Controller
+import utils.MailUtils
 import utils.auth.DefaultEnv
 
 import scala.concurrent.Future
@@ -30,8 +31,9 @@ class ForgotPasswordController @Inject() (
   userService: UserService,
   authTokenService: AuthTokenService,
   mailerClient: MailerClient,
+  environment: play.api.Environment,
   implicit val webJarAssets: WebJarAssets)
-  extends Controller with I18nSupport {
+  extends Controller with I18nSupport with MailUtils {
 
   /**
    * Views the `Forgot Password` page.
@@ -60,14 +62,15 @@ class ForgotPasswordController @Inject() (
           case Some(user) if user.email.isDefined =>
             authTokenService.create(user.userID).map { authToken =>
               val url = routes.ResetPasswordController.view(authToken.id).absoluteURL()
-
-              mailerClient.send(Email(
+              val mail = Email(
                 subject = Messages("email.reset.password.subject"),
                 from = Messages("email.from"),
                 to = Seq(email),
                 bodyText = Some(views.txt.emails.resetPassword(user, url).body),
                 bodyHtml = Some(views.html.emails.resetPassword(user, url).body)
-              ))
+              )
+              sendMail(mail, environment.mode, mailerClient)
+
               result
             }
           case None => Future.successful(result)

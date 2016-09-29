@@ -15,9 +15,8 @@ import com.mohiva.play.silhouette.impl.providers.oauth1._
 import com.mohiva.play.silhouette.impl.providers.oauth1.secrets.{ CookieSecretProvider, CookieSecretSettings }
 import com.mohiva.play.silhouette.impl.providers.oauth1.services.PlayOAuth1Service
 import com.mohiva.play.silhouette.impl.providers.oauth2._
-import com.mohiva.play.silhouette.impl.providers.oauth2.state.{ CookieStateProvider, CookieStateSettings, DummyStateProvider }
+import com.mohiva.play.silhouette.impl.providers.oauth2.state.{ CookieStateProvider, CookieStateSettings }
 import com.mohiva.play.silhouette.impl.providers.openid.YahooProvider
-import com.mohiva.play.silhouette.impl.providers.openid.services.PlayOpenIDService
 import com.mohiva.play.silhouette.impl.services._
 import com.mohiva.play.silhouette.impl.util._
 import com.mohiva.play.silhouette.password.BCryptPasswordHasher
@@ -30,7 +29,6 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.codingwell.scalaguice.ScalaModule
 import play.api.Configuration
 import play.api.libs.concurrent.Execution.Implicits._
-import play.api.libs.openid.OpenIdClient
 import play.api.libs.ws.WSClient
 import utils.auth.{ CustomSecuredErrorHandler, CustomUnsecuredErrorHandler, DefaultEnv }
 
@@ -98,31 +96,19 @@ class SilhouetteModule extends AbstractModule with ScalaModule {
    *
    * @param facebookProvider The Facebook provider implementation.
    * @param googleProvider The Google provider implementation.
-   * @param vkProvider The VK provider implementation.
-   * @param clefProvider The Clef provider implementation.
    * @param twitterProvider The Twitter provider implementation.
-   * @param xingProvider The Xing provider implementation.
-   * @param yahooProvider The Yahoo provider implementation.
    * @return The Silhouette environment.
    */
   @Provides
   def provideSocialProviderRegistry(
     facebookProvider: FacebookProvider,
     googleProvider: GoogleProvider,
-    vkProvider: VKProvider,
-    clefProvider: ClefProvider,
-    twitterProvider: TwitterProvider,
-    xingProvider: XingProvider,
-    yahooProvider: YahooProvider): SocialProviderRegistry = {
+    twitterProvider: TwitterProvider): SocialProviderRegistry = {
 
     SocialProviderRegistry(Seq(
       googleProvider,
       facebookProvider,
-      twitterProvider,
-      vkProvider,
-      xingProvider,
-      yahooProvider,
-      clefProvider
+      twitterProvider
     ))
   }
 
@@ -345,36 +331,6 @@ class SilhouetteModule extends AbstractModule with ScalaModule {
   }
 
   /**
-   * Provides the VK provider.
-   *
-   * @param httpLayer The HTTP layer implementation.
-   * @param stateProvider The OAuth2 state provider implementation.
-   * @param configuration The Play configuration.
-   * @return The VK provider.
-   */
-  @Provides
-  def provideVKProvider(
-    httpLayer: HTTPLayer,
-    stateProvider: OAuth2StateProvider,
-    configuration: Configuration): VKProvider = {
-
-    new VKProvider(httpLayer, stateProvider, configuration.underlying.as[OAuth2Settings]("silhouette.vk"))
-  }
-
-  /**
-   * Provides the Clef provider.
-   *
-   * @param httpLayer The HTTP layer implementation.
-   * @param configuration The Play configuration.
-   * @return The Clef provider.
-   */
-  @Provides
-  def provideClefProvider(httpLayer: HTTPLayer, configuration: Configuration): ClefProvider = {
-
-    new ClefProvider(httpLayer, new DummyStateProvider, configuration.underlying.as[OAuth2Settings]("silhouette.clef"))
-  }
-
-  /**
    * Provides the Twitter provider.
    *
    * @param httpLayer The HTTP layer implementation.
@@ -392,41 +348,4 @@ class SilhouetteModule extends AbstractModule with ScalaModule {
     new TwitterProvider(httpLayer, new PlayOAuth1Service(settings), tokenSecretProvider, settings)
   }
 
-  /**
-   * Provides the Xing provider.
-   *
-   * @param httpLayer The HTTP layer implementation.
-   * @param tokenSecretProvider The token secret provider implementation.
-   * @param configuration The Play configuration.
-   * @return The Xing provider.
-   */
-  @Provides
-  def provideXingProvider(
-    httpLayer: HTTPLayer,
-    tokenSecretProvider: OAuth1TokenSecretProvider,
-    configuration: Configuration): XingProvider = {
-
-    val settings = configuration.underlying.as[OAuth1Settings]("silhouette.xing")
-    new XingProvider(httpLayer, new PlayOAuth1Service(settings), tokenSecretProvider, settings)
-  }
-
-  /**
-   * Provides the Yahoo provider.
-   *
-   * @param cacheLayer The cache layer implementation.
-   * @param httpLayer The HTTP layer implementation.
-   * @param client The OpenID client implementation.
-   * @param configuration The Play configuration.
-   * @return The Yahoo provider.
-   */
-  @Provides
-  def provideYahooProvider(
-    cacheLayer: CacheLayer,
-    httpLayer: HTTPLayer,
-    client: OpenIdClient,
-    configuration: Configuration): YahooProvider = {
-
-    val settings = configuration.underlying.as[OpenIDSettings]("silhouette.yahoo")
-    new YahooProvider(httpLayer, new PlayOpenIDService(client, settings), settings)
-  }
 }
